@@ -12,8 +12,8 @@ from core.capture import WindowCapture
 from core.decision import DecisionEngine
 from core.knowledge import KnowledgeBase
 from core.overlay import OverlayRenderer
+from core.vlm_nemotron import NemotronVLVLM
 from core.vlm import get_vlm
-from core.vlm_api import ApiVLM
 
 
 def build_vlm():
@@ -24,7 +24,7 @@ def build_vlm():
     """
     if VLM_BACKEND == "api":
         api_key = VLM_API_KEY or os.environ.get("OPENAI_API_KEY", "")
-        return ApiVLM(
+        return NemotronVLVLM(
             base_url=VLM_API_BASE_URL,
             model=VLM_API_MODEL,
             api_key=api_key,

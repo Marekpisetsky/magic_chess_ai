@@ -21,8 +21,8 @@ from core.decision import DecisionEngine
 from core.hud_reader import HUDReader
 from core.knowledge import KnowledgeBase
 from core.overlay import OverlayRenderer
+from core.vlm_nemotron import NemotronVLVLM
 from core.vlm import get_vlm
-from core.vlm_api import ApiVLM
 from core.vision import analyze_frame as analyze_players
 
 HUD_DEBUG_OVERLAY = False  # pon True solo para depurar cajas (escribe hud_debug.png en cada frame)
@@ -35,7 +35,7 @@ PLAYERS_EVERY_N = 2
 def build_vlm():
     if VLM_BACKEND == "api":
         api_key = VLM_API_KEY or os.environ.get("OPENAI_API_KEY", "")
-        return ApiVLM(
+        return NemotronVLVLM(
             base_url=VLM_API_BASE_URL,
             model=VLM_API_MODEL,
             api_key=api_key,

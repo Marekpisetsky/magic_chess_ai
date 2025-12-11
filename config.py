@@ -1,7 +1,7 @@
 ﻿# Configuracion de modelos y captura
 
 # mock -> usa el VLM de pruebas que inventa un estado.
-# api  -> llama a ApiVLM (endpoint estilo OpenAI/NIM).
+# api  -> llama al VLM de inferencia via NIM/API (Nemotron, etc).
 VLM_BACKEND = "api"
 
 VLM_API_BASE_URL = "http://localhost:1234"
