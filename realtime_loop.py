@@ -178,13 +178,20 @@ def main() -> None:
             if not action_for_log:
                 action_for_log = recs[0].get("tipo", "noop") if recs else "noop"
 
+            info = {
+                "round": getattr(gs, "round_label", None),
+                "gold": getattr(gs, "oro", None),
+                "level": getattr(gs, "nivel_tablero", None),
+                "hp": getattr(gs, "vida", None),
+            }
+
             try:
                 logger.log_step(
                     state_vector=state_vec,
                     action=action_for_log,
                     reward=0.0,
                     done=False,
-                    info={"round": ronda},
+                    info=info,
                 )
             except Exception as log_err:
                 print(f"[realtime] No se pudo loggear la experiencia: {log_err}")

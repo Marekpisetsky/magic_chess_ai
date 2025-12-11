@@ -2,7 +2,17 @@
 
 import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+# Estadisticas de oro esperadas por ronda (si existen)
+_GOLD_STATS_PATH = Path("data/gold_stats.json")
+_GOLD_STATS: Dict[str, Any] = {}
+if _GOLD_STATS_PATH.exists():
+    try:
+        _GOLD_STATS = json.loads(_GOLD_STATS_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        _GOLD_STATS = {}
 
 
 def _clamp_int(val: Any, minimum: int, maximum: int) -> int:
@@ -228,6 +238,13 @@ class GameState:
         xp_norm = min(self.xp_actual, 20) / 20.0
         r1_norm = r1 / 10.0
         r2_norm = r2 / 10.0
+        stats = _GOLD_STATS.get(self.round_label)
+        if stats and stats.get("count", 0) > 0:
+            expected_gold = stats.get("avg_gold", self.oro)
+            gold_delta = self.oro - expected_gold
+        else:
+            gold_delta = 0.0
+        gold_delta_norm = max(-50.0, min(50.0, gold_delta)) / 50.0
         return [
             level_norm,
             gold_norm,
@@ -235,6 +252,7 @@ class GameState:
             xp_norm,
             r1_norm,
             r2_norm,
+            gold_delta_norm,
         ]
 
 
