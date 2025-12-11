@@ -18,7 +18,9 @@ from config import (
 )
 from core.capture import WindowCapture
 from core.decision import DecisionEngine
+from core.experience_logger import EpisodeLogger
 from core.hud_reader import HUDReader
+from core.learned_policy import LearnedPolicy
 from core.knowledge import KnowledgeBase
 from core.overlay import OverlayRenderer
 from core.vlm_nemotron import NemotronVLVLM
@@ -57,11 +59,23 @@ def main() -> None:
         api_key=VLM_API_KEY or "lm-studio",
         debug_overlay=HUD_DEBUG_OVERLAY,
     )
+    logger = EpisodeLogger()
+    logger.start_episode()
+
+    policy = None
+    policy_model_path = Path("policy_model.pt")
+    if policy_model_path.exists():
+        try:
+            policy = LearnedPolicy(str(policy_model_path))
+            print(f"[realtime] Policy cargada desde {policy_model_path}")
+        except Exception as pol_err:
+            print(f"[realtime] No se pudo cargar policy_model.pt: {pol_err}")
 
     match_id = kb.start_match()
     ronda = 1
 
     last_state = None
+    policy_used = policy is not None
 
     delay = 1.0 / capture.fps if hasattr(capture, "fps") else 1.0
 
@@ -115,18 +129,19 @@ def main() -> None:
 
             # Fusion de datos: preferimos HUD/players sobre VLM global
             if hud:
-                if hud.oro is not None:
-                    gs.oro = int(hud.oro)
-                if hud.nivel_tablero is not None:
-                    gs.nivel_tablero = int(hud.nivel_tablero)
+                gs.update_from_hud(
+                    {
+                        "round": hud.round_label,
+                        "level": hud.nivel_tablero,
+                        "gold": hud.oro,
+                        "hp_self": None,  # hp se actualiza via lista de jugadores
+                    }
+                )
                 gs.tienda_abierta = bool(hud.tienda_abierta)
-                # guarda round_label textual si existe
-                if hud.round_label:
-                    gs.ronda = gs.ronda  # conservamos contador; podríamos guardar aparte
                 if hud.debug_path:
                     print(f"[realtime] Debug HUD guardado en {hud.debug_path}")
             if local_hp is not None:
-                gs.vida = local_hp
+                gs.update_from_hud({"hp_self": local_hp})
 
             def _smooth_state(prev, curr):
                 if prev is None:
@@ -149,8 +164,30 @@ def main() -> None:
             gs = _smooth_state(last_state, gs)
             last_state = gs
 
+            state_vec = gs.to_vector()
+
             recs = decision_engine.recommend_actions(gs)
             overlay.show_recommendations(recs)
+
+            action_for_log = None
+            if policy:
+                try:
+                    action_for_log = policy.choose_action(state_vec)
+                except Exception as policy_err:
+                    print(f"[realtime] Error al inferir policy: {policy_err}")
+            if not action_for_log:
+                action_for_log = recs[0].get("tipo", "noop") if recs else "noop"
+
+            try:
+                logger.log_step(
+                    state_vector=state_vec,
+                    action=action_for_log,
+                    reward=0.0,
+                    done=False,
+                    info={"round": ronda},
+                )
+            except Exception as log_err:
+                print(f"[realtime] No se pudo loggear la experiencia: {log_err}")
 
             kb.add_round(
                 match_id=match_id,
@@ -175,6 +212,12 @@ def main() -> None:
     except Exception as e:
         print("\nError:", e)
     finally:
+        try:
+            logger.end_episode(
+                {"match_id": match_id, "last_round": max(0, ronda - 1), "policy_used": policy_used}
+            )
+        except Exception as end_log_err:
+            print(f"[realtime] No se pudo cerrar el episodio: {end_log_err}")
         try:
             kb.end_match(match_id, posicion=None, vida=None)
         except Exception:

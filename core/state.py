@@ -73,6 +73,7 @@ class GameState:
 
     fase: str
     ronda: int
+    round_label: str = ""
     oro: int
     vida: int
     nivel_tablero: int
@@ -91,6 +92,7 @@ class GameState:
         # Sanitiza valores numericos basicos para evitar rangos absurdos.
         self.fase = self.fase or "unknown"
         self.ronda = _clamp_int(self.ronda, 0, 200)
+        self.round_label = (self.round_label or "").strip()
         self.oro = _clamp_int(self.oro, 0, 200)
         self.vida = _clamp_int(self.vida, 0, 100)
         self.nivel_tablero = _clamp_int(self.nivel_tablero, 1, 15)
@@ -136,6 +138,7 @@ class GameState:
         return {
             "fase": self.fase,
             "ronda": int(self.ronda),
+            "round_label": self.round_label,
             "oro": int(self.oro),
             "vida": int(self.vida),
             "nivel_tablero": int(self.nivel_tablero),
@@ -163,6 +166,7 @@ class GameState:
         return cls(
             fase=str(data.get("fase", "early")),
             ronda=int(data.get("ronda", 0)),
+            round_label=str(data.get("round_label") or ""),
             oro=int(data.get("oro", 0)),
             vida=int(data.get("vida", 100)),
             nivel_tablero=int(data.get("nivel_tablero", 1)),
@@ -181,6 +185,57 @@ class GameState:
     @classmethod
     def from_json(cls, raw: str) -> "GameState":
         return cls.from_dict(json.loads(raw))
+
+    # --------- Actualizacion y featurizacion ---------
+
+    def update_from_hud(self, hud: Dict[str, Any]) -> None:
+        """
+        Actualiza campos basicos con datos leidos por OCR/modelo local.
+        Espera claves: round, level, gold, hp_self.
+        """
+        if hud.get("round") is not None:
+            self.round_label = str(hud["round"])
+        if hud.get("level") is not None:
+            self.nivel_tablero = _clamp_int(hud["level"], 1, 15)
+        if hud.get("gold") is not None:
+            self.oro = _clamp_int(hud["gold"], 0, 200)
+        if hud.get("hp_self") is not None:
+            self.vida = _clamp_int(hud["hp_self"], 0, 100)
+
+    def _round_to_nums(self) -> tuple[int, int]:
+        """
+        Convierte round_label tipo '2-3' -> (2, 3).
+        Si no hay round_label, devuelve (0, 0).
+        """
+        label = (self.round_label or "").strip()
+        if "-" in label:
+            try:
+                a, b = label.split("-")
+                return int(a), int(b)
+            except Exception:
+                return (0, 0)
+        return (0, 0)
+
+    def to_vector(self) -> List[float]:
+        """
+        Representacion numerica simple y normalizada del estado.
+        Se puede extender con mas features (sinergias, tamano de tablero, etc.).
+        """
+        r1, r2 = self._round_to_nums()
+        level_norm = self.nivel_tablero / 9.0
+        gold_norm = min(self.oro, 100) / 100.0
+        hp_norm = self.vida / 100.0
+        xp_norm = min(self.xp_actual, 20) / 20.0
+        r1_norm = r1 / 10.0
+        r2_norm = r2 / 10.0
+        return [
+            level_norm,
+            gold_norm,
+            hp_norm,
+            xp_norm,
+            r1_norm,
+            r2_norm,
+        ]
 
 
 @dataclass
