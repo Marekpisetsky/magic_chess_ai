@@ -7,6 +7,8 @@ import time
 from pathlib import Path
 import copy
 
+import cv2
+import numpy as np
 from PIL import Image
 
 from core.experience_logger import EpisodeLogger
@@ -14,34 +16,39 @@ from core.hud_local_reader import HUDLocalReader
 from core.reward import compute_reward
 from core.rule_based_policy import RuleBasedPolicy
 from core.state import GameState
+from core.capture import WindowCapture
+from config import GAME_WINDOW_TITLE
 
 # Directorio para frames y control de episodio fake
-FRAMES_DIR = Path("frames")
-FRAMES_DIR.mkdir(exist_ok=True)
 RAW_FRAMES_DIR = Path("data/raw_frames")
 RAW_FRAMES_DIR.mkdir(parents=True, exist_ok=True)
 MAX_STEPS = 50  # terminar episodio tras este numero de pasos
 _step_counter = 0
+_frame_idx = 0
+window_capture = WindowCapture(window_title=GAME_WINDOW_TITLE)
 
 
 def capture_current_frame() -> str:
     """
-    Version minima: genera/usa un frame negro en disco.
+    Captura la ventana del juego y guarda un PNG en data/raw_frames/.
+    Si falla la captura, genera un frame negro para no romper el pipeline.
     """
     global _step_counter
+    global _frame_idx
     _step_counter += 1
+    _frame_idx += 1
 
-    fake_frame_path = FRAMES_DIR / "fake_frame.png"
-    if not fake_frame_path.exists():
-        img = Image.new("RGB", (1920, 1080), color=(0, 0, 0))
-        fake_frame_path.parent.mkdir(parents=True, exist_ok=True)
-        img.save(fake_frame_path)
-    # Copiamos/guardamos con indice para dataset
-    raw_path = RAW_FRAMES_DIR / f"frame_{_step_counter:05d}.png"
-    if not raw_path.exists():
-        img = Image.open(fake_frame_path)
-        img.save(raw_path)
-    return str(fake_frame_path)
+    out_path = RAW_FRAMES_DIR / f"frame_{_frame_idx:05d}.png"
+
+    frame_bgr = window_capture.capture_once()
+    if frame_bgr is None:
+        # Fallback: imagen negra 1080p
+        img = np.zeros((1080, 1920, 3), dtype=np.uint8)
+        cv2.imwrite(str(out_path), img)
+        return str(out_path)
+
+    cv2.imwrite(str(out_path), frame_bgr)
+    return str(out_path)
 
 
 def read_hud(frame_path: str, gs: GameState, hud_reader: HUDLocalReader | None) -> None:
