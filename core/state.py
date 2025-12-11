@@ -83,11 +83,11 @@ class GameState:
 
     fase: str
     ronda: int
-    round_label: str = ""
     oro: int
     vida: int
     nivel_tablero: int
     xp_actual: int
+    round_label: str = ""
     tienda: List[ShopHero] = field(default_factory=list)
     tablero: List[BoardUnit] = field(default_factory=list)
     banco: List[BoardUnit] = field(default_factory=list)
