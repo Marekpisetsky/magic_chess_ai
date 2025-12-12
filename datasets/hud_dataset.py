@@ -68,7 +68,16 @@ class HUDDataset(Dataset):
         self, idx: int
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         rec = self.records[idx]
-        img_path = self.frames_dir / rec["image"]
+        img_field = rec["image"]
+        p = Path(img_field)
+        if p.is_absolute():
+            img_path = p
+        else:
+            norm = str(p).replace("\\", "/")
+            if norm.startswith("data/"):
+                img_path = Path(norm)
+            else:
+                img_path = self.frames_dir / p
 
         img = Image.open(img_path).convert("RGB")
         x = self.transform(img)

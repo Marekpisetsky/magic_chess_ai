@@ -74,12 +74,7 @@ def load_existing_labels(labels_path: Path) -> Dict[str, Dict[str, Any]]:
     return labels
 
 
-def ask_label(prompt: str, default: Any = None, cast_type=None) -> Any:
-    """
-    Pregunta en consola con valor por defecto opcional.
-    Si el usuario pulsa ENTER, se queda con el default.
-    Si cast_type se indica (int, float, etc.), castea el valor.
-    """
+def ask_label(prompt: str, default=None, cast_type=None):
     if default is not None:
         full_prompt = f"{prompt} [{default}]: "
     else:
@@ -89,12 +84,17 @@ def ask_label(prompt: str, default: Any = None, cast_type=None) -> Any:
         val = input(full_prompt).strip()
         if not val:
             return default
+        if val == "":
+            return None
         if cast_type is None:
             return val
         try:
             return cast_type(val)
         except ValueError:
-            print(f"Valor inválido, esperaba {cast_type.__name__}. Intenta de nuevo.")
+            print(f"Valor inv?lido, esperaba {cast_type.__name__} o '' para desconocido.")
+
+
+
 
 
 def main() -> None:
@@ -167,17 +167,17 @@ def main() -> None:
                 print("Saltando imagen.")
                 continue
 
-            gold = ask_label("Oro actual", default_gold, int)
+            gold = ask_label("Oro (o  si no se ve)", default_gold, int)
             if isinstance(gold, str) and gold.lower() == "skip":
                 print("Saltando imagen.")
                 continue
 
-            level = ask_label("Nivel del jugador", default_level, int)
+            level = ask_label("Nivel (o  si no se ve)", default_level, int)
             if isinstance(level, str) and level.lower() == "skip":
                 print("Saltando imagen.")
                 continue
 
-            hp = ask_label("Vida (HP)", default_hp, int)
+            hp = ask_label("Vida/HP (o  si no se ve)", default_hp, int)
             if isinstance(hp, str) and hp.lower() == "skip":
                 print("Saltando imagen.")
                 continue
